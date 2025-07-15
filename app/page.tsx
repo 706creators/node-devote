@@ -85,7 +85,7 @@ export default function Home() {
           <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <p>这个机制，本质上是一种信任图谱 + 权重扩散模型</p>
             <p>每个人都可以给其他人投票，每个人也会被其他人投票。</p>
-            <p>每个人的投票权重 = 获得票数 * 激活函数（对数衰减）。</p>
+            <p>每个人的投票权重 = 获得票数 * 权重衰减对数函数。</p>
             <p>最终统计每个用户获得的加权数值：即别人给他的票对方的权重。</p>
           </div>
         </div>
