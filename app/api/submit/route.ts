@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
 
     const voterName = name.trim();
     const nominees = text.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0);
 
     if (nominees.length === 0) {
       return NextResponse.json(
