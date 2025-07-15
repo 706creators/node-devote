@@ -7,6 +7,9 @@ interface VoteResult {
   nominee_name: string;
   vote_count: string;
   voters: string[];
+  score: number;
+  weight: number;
+  received: number;
 }
 
 interface ResultsData {
@@ -19,6 +22,7 @@ export default function ResultsPage() {
   const [resultsData, setResultsData] = useState<ResultsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'score' | 'votes'>('score');
 
   useEffect(() => {
     loadResults();
@@ -59,6 +63,21 @@ export default function ResultsPage() {
       case 1: return 'from-gray-300 to-gray-500';
       case 2: return 'from-amber-600 to-amber-800';
       default: return 'from-blue-400 to-blue-600';
+    }
+  };
+
+  // 根据显示模式排序结果
+  const getSortedResults = () => {
+    if (!resultsData?.results) return [];
+    
+    const results = [...resultsData.results];
+    
+    if (viewMode === 'score') {
+      // 按score降序排列（API已经排好序了）
+      return results;
+    } else {
+      // 按原始票数降序排列
+      return results.sort((a, b) => b.received - a.received);
     }
   };
 
@@ -103,6 +122,8 @@ export default function ResultsPage() {
     );
   }
 
+  const sortedResults = getSortedResults();
+
   return (
     <div className="font-sans min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
@@ -115,6 +136,47 @@ export default function ResultsPage() {
             基于信任图谱的投票统计结果
           </p>
         </div>
+
+        {/* 视图切换 */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm">
+            <button
+              onClick={() => setViewMode('score')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'score'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              🧮 加权得分排行
+            </button>
+            <button
+              onClick={() => setViewMode('votes')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'votes'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              📊 基础票数排行
+            </button>
+          </div>
+        </div>
+
+        {/* 算法说明 */}
+        {viewMode === 'score' && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
+            <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
+              🧩 加权算法说明
+            </h3>
+            <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+              <p>• 每个用户的投票权重 = log(1 + 获得票数)</p>
+              <p>• 最终得分 = Σ(投票者权重 ÷ 投票者的投票数量)</p>
+              <p>• 引入权重衰减，一方面引导用户在有限的信任额度内做出更谨慎、真实的选择，
+                   另一方面防止早期用户或高票者垄断影响力，让新参与者也有机会被看见 </p>
+            </div>
+          </div>
+        )}
 
         {/* 统计信息 */}
         {resultsData && (
@@ -137,7 +199,7 @@ export default function ResultsPage() {
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center shadow-sm">
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {resultsData.results.reduce((acc, result) => acc + result.voters.length, 0) / resultsData.results.length || 0}
+                {Math.round((resultsData.totalVotes / resultsData.results.length) * 100) / 100}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 平均票数
@@ -150,13 +212,13 @@ export default function ResultsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              排名详情
+              {viewMode === 'score' ? '加权得分排名' : '基础票数排名'}
             </h2>
           </div>
           
-          {resultsData && resultsData.results.length > 0 ? (
+          {sortedResults.length > 0 ? (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {resultsData.results.map((result, index) => (
+              {sortedResults.map((result, index) => (
                 <div
                   key={result.nominee_name}
                   className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -175,28 +237,42 @@ export default function ResultsPage() {
                         </h3>
                         <div className="text-right ml-4">
                           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {result.vote_count}
+                            {viewMode === 'score' ? result.score : result.received}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            票
+                            {viewMode === 'score' ? '加权得分' : '票数'}
                           </div>
                         </div>
                       </div>
                       
-                      {/* 投票者列表 */}
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                          投票者:
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.voters.map((voter, voterIndex) => (
-                            <span
-                              key={voterIndex}
-                              className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full"
-                            >
-                              {voter}
+                      {/* 详细信息 */}
+                      <div className="mt-2 space-y-2">
+                        {viewMode === 'score' && (
+                          <div className="flex gap-4 text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              原始票数: <span className="font-medium">{result.received}</span>
                             </span>
-                          ))}
+                            <span className="text-gray-600 dark:text-gray-400">
+                              投票权重: <span className="font-medium">{result.weight}</span>
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* 投票者列表 */}
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                            投票者:
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {result.voters.map((voter, voterIndex) => (
+                              <span
+                                key={voterIndex}
+                                className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full"
+                              >
+                                {voter}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
