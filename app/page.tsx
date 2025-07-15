@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [name, setName] = useState("");
@@ -10,6 +11,7 @@ export default function Home() {
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [modalMessage, setModalMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async () => {
     // 验证输入
@@ -30,27 +32,27 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 这里可以添加实际的API调用
-      // const response = await fetch('/api/submit', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ name, text })
-      // });
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, text })
+      });
 
-      // 模拟成功/失败
-      const isSuccess = Math.random() > 0.3; // 70% 成功率用于演示
+      const data = await response.json();
 
-      if (isSuccess) {
+      if (response.ok && data.success) {
         setModalType('success');
-        setModalMessage('提交成功！您的投票已记录。');
+        setModalMessage(`提交成功！您提交了 ${data.votes} 个投票。即将跳转到排行榜...`);
         setName('');
         setText('');
+        
+        // 2秒后跳转到排行榜
+        setTimeout(() => {
+          router.push('/results');
+        }, 2000);
       } else {
         setModalType('error');
-        setModalMessage('提交失败，请稍后重试。');
+        setModalMessage(data.error || '提交失败，请稍后重试。');
       }
     } catch (error) {
       setModalType('error');
@@ -63,6 +65,10 @@ export default function Home() {
 
   const closeModal = () => {
     setShowModal(false);
+  };
+
+  const goToResults = () => {
+    router.push('/results');
   };
 
   return (
@@ -122,14 +128,24 @@ export default function Home() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? '提交中...' : '提交'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex-1 rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? '提交中...' : '提交'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={goToResults}
+              className="rounded-full border border-gray-300 dark:border-gray-600 transition-colors flex items-center justify-center bg-transparent text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+            >
+              🏆 排行榜
+            </button>
+          </div>
         </div>
       </main>
 
@@ -158,12 +174,22 @@ export default function Home() {
             <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
               {modalMessage}
             </p>
-            <button
-              onClick={closeModal}
-              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
-            >
-              确定
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={closeModal}
+                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                {modalType === 'success' ? '稍后查看' : '确定'}
+              </button>
+              {modalType === 'success' && (
+                <button
+                  onClick={() => router.push('/results')}
+                  className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                >
+                  立即查看
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
